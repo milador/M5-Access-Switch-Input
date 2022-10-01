@@ -10,7 +10,7 @@
 #include <BleKeyboard.h>
 #include "EasyMorse.h"
 #include <StopWatch.h>
-#include <M5StickCPlus.h>
+#include <M5StickC.h>
 
 //***CAN BE CHANGED***/
 #define MORSE_TIMEOUT                 1000                //Maximum timeout (1000ms =1s)
@@ -188,10 +188,10 @@ void showIntro() {
   M5.Lcd.setTextColor(WHITE);
 
   M5.Lcd.setTextSize(2);                        
-  M5.Lcd.drawCentreString("Milador.ca",130,40,2);
+  M5.Lcd.drawCentreString("Milador.ca",80,20,2);
 
   M5.Lcd.setTextSize(1);
-  M5.Lcd.drawCentreString("M5Stick Switch Input",130,80,1);
+  M5.Lcd.drawCentreString("M5Stick Switch Input",80,50,1);
 
   delay(3000);
 }
@@ -203,10 +203,10 @@ void showMode(){
 
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);                      //Black background
-  M5.Lcd.drawRect(2, 2, 238, 30, modeProperty[g_switchMode-1].modeColor);
+  M5.Lcd.drawRect(1, 1, 159, 20, modeProperty[g_switchMode-1].modeColor);
   M5.Lcd.setTextColor(modeProperty[g_switchMode-1].modeColor);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.drawCentreString(modeProperty[g_switchMode-1].modeName,120,5,4);
+  M5.Lcd.drawCentreString(modeProperty[g_switchMode-1].modeName,80,2,2);
   
   showModeInfo();
   showMessage();
@@ -217,11 +217,11 @@ void showMessage() {
   M5.Lcd.setRotation(3);
   M5.Lcd.setTextSize(1);                    // Select the font
   //Display connection status based on code
-  M5.Lcd.drawRect(2, 100, 238, 30, BLUE);
+  M5.Lcd.drawRect(1, 65, 159, 15, BLUE);
   M5.Lcd.setTextColor(BLUE); 
   g_switchMessage = "Switch Input";
   Serial.println(g_switchMessage);
-  M5.Lcd.drawCentreString(g_switchMessage,120,105,2);// Display message 
+  M5.Lcd.drawCentreString(g_switchMessage,80,69,1);// Display message 
     
 }
 
@@ -231,7 +231,7 @@ void showModeInfo() {
   String switchAText = "Swich A: ";
   String switchBText = "Swich B: ";
   M5.Lcd.setRotation(3);
-  M5.Lcd.drawRect(2, 35, 238, 62, WHITE);
+  M5.Lcd.drawRect(1, 23, 159, 41, WHITE);
   M5.Lcd.setTextColor(WHITE); 
   M5.Lcd.setTextSize(1);
   if(g_switchMode==1) {
@@ -250,8 +250,8 @@ void showModeInfo() {
     switchAText.concat(switchProperty[0].switchSettingsText);
     switchBText.concat(switchProperty[1].switchSettingsText);
   }
-  M5.Lcd.drawCentreString(switchAText,120,44,2);
-  M5.Lcd.drawCentreString(switchBText,120,67,2);
+  M5.Lcd.drawCentreString(switchAText,80,28,2);
+  M5.Lcd.drawCentreString(switchBText,80,43,2);
 }
 
 /***INTRO PAGE LOOP***/

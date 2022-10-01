@@ -2,7 +2,7 @@
  * File Name: M5_Access_Switch_Input_Software.ino 
  * Title: M5 Switch Input Interface Software
  * Developed by: Milador
- * Version Number: 1.0 (24/6/2022)
+ * Version Number: 1.0 (24/9/2022)
  * Github Link: https://github.com/milador/M5-Access-Switch-Input
  ***************************************************************************/
 
@@ -19,10 +19,12 @@
 #define SWITCH_MODE_CHANGE_TIME       4000                //How long to hold switch 4 to change mode 
 #define SWITCH_DEFAULT_MODE           1
 #define SWITCH_DEFAULT_REACTION_LEVEL 6
+#define TO_SLEEP_TIME                 60                  //Go to sleep if no data was sent in 60 seconds
+#define TO_WAKE_TIME                  180                 //Wake up every 3 minutes 
+#define S_TO_MS_FACTOR                1000
+#define US_TO_S_FACTOR                1000000     
 
 //***DO NOT CHANGE***//
-#define INPUT_ADDR                     0x27                //TCA9534 input switch module I2C Address 
-#define NUM_SWITCH                     2                   //Switch A and B
 #define UPDATE_SWITCH_DELAY            200                 //100ms
 #define EEPROM_SIZE                    3                   //Define the number of bytes you want to access
 
@@ -46,7 +48,7 @@ int g_pageNumber;
 
 //Stopwatches array used to time switch presses
 StopWatch g_timeWatcher[3];
-StopWatch g_switchBTimeWatcher[1];
+StopWatch g_switchATimeWatcher[1];
 
 //Initialize time variables for morse code
 unsigned msMin = MS_MIN_DD;
@@ -98,15 +100,18 @@ const modeStruct modeProperty[] {
     {4,"Settings",YELLOW}
 };
 
+
+unsigned long currentTime = 0, switchAPressTime = 0, switchBPressTime = 0;
+
 EasyMorse morse;
 //BleKeyboard bleKeyboard;
-BleKeyboard bleKeyboard("M5Stick Switch Input", "Me", 100);
+BleKeyboard bleKeyboard("M5SwitchInput", "Me", 100);
 
 void setup() {
 
   Serial.begin(115200);                                                        //Starts Serial
   M5.begin();                                                                  //Starts M5Stack
-  bleKeyboard.setName("M5Stick Switch Input");                                     //Set name of BLE keyboard device 
+  bleKeyboard.setName("M5SwitchInput");                                        //Set name of BLE keyboard device 
   bleKeyboard.begin();                                                         //Starts BLE keyboard emulation
   EEPROM.begin(EEPROM_SIZE);                                                   //Starts EEPROM emulation
   delay(1000);
@@ -116,11 +121,14 @@ void setup() {
   delay(5);   
   morseSetup();                                                                //Setup morse
   delay(5);   
-
   showMode(); 
+  delay(5);
+  initBatterySaver();
 };
 
 void loop() {
+
+  batterySaver();
   //Perform input action based on page number 
   switch (g_pageNumber) {
     case 0:
@@ -136,6 +144,28 @@ void loop() {
 
   delay(5);
   
+}
+
+
+//***INITIALIZE BATTERY SAVER FUNCTION***//
+void initBatterySaver() {
+
+  //Wake-up using Switch A and Switch B
+  pinMode(GPIO_NUM_26, INPUT_PULLUP);
+  esp_sleep_enable_ext1_wakeup(BIT64(GPIO_NUM_26), ESP_EXT1_WAKEUP_ALL_LOW);
+  //Wake-up using Button A and Button B
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_37,LOW);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,LOW);
+  currentTime = switchAPressTime = switchBPressTime = millis();
+}
+
+//***BATTERY SAVER FUNCTION***//
+void batterySaver() {
+  currentTime = millis();
+  long currentPressTime = max(switchAPressTime,switchBPressTime);
+  if (currentTime > (currentPressTime + (TO_SLEEP_TIME * S_TO_MS_FACTOR))) {
+    M5.Axp.DeepSleep(SLEEP_SEC(TO_WAKE_TIME));
+  }
 }
 
 //*** SHOW INTRO PAGE***//
@@ -244,36 +274,42 @@ void modeLoop() {
   static int ctr;                          //Control variable to set previous status of switches 
   unsigned long timePressed;               //Time that switch one or two are pressed
   unsigned long timeNotPressed;            //Time that switch one or two are not pressed
-  static int previousSwitchBState;         //Previous status of switch B
+  static int previousSwitchAState, previousSwitchBState;  //Previous status of switch A and switch B
   
   //Update status of switch inputs
   g_switchAState = digitalRead(SWITCH_A_PIN);
   g_switchBState = digitalRead(SWITCH_B_PIN);
 
   timePressed = timeNotPressed  = 0;       //reset time counters
-  if (!ctr) {                              //Set previous status of switch two 
-    previousSwitchBState = HIGH;  
+  if (!ctr) {                              //Set previous status of switch A 
+    previousSwitchAState = HIGH;  
     ctr++;
   }
-  //Check if switch B is pressed to change switch mode
+  //Check if switch A is pressed to change switch mode
+  if (g_switchAState == LOW && previousSwitchAState == HIGH) {
+     previousSwitchAState = LOW; 
+     g_switchATimeWatcher[0].stop();                                //Reset and start the timer         
+     g_switchATimeWatcher[0].reset();                                                                        
+     g_switchATimeWatcher[0].start(); 
+     switchAPressTime = millis();    
+  }
+  //Check if switch B is pressed
   if (g_switchBState == LOW && previousSwitchBState == HIGH) {
      previousSwitchBState = LOW; 
-     g_switchBTimeWatcher[0].stop();                                //Reset and start the timer         
-     g_switchBTimeWatcher[0].reset();                                                                        
-     g_switchBTimeWatcher[0].start(); 
+     switchBPressTime = millis();
   }
-  // Switch B was released
-  if (g_switchBState == HIGH && previousSwitchBState == LOW) {
-    previousSwitchBState = HIGH;
-    timePressed = g_switchBTimeWatcher[0].elapsed();                //Calculate the time that switch one was pressed 
-    g_switchBTimeWatcher[0].stop();                                 //Stop the single action (dot/dash) timer and reset
-    g_switchBTimeWatcher[0].reset();
+  // Switch A was released
+  if (g_switchAState == HIGH && previousSwitchAState == LOW) {
+    previousSwitchAState = HIGH;
+    timePressed = g_switchATimeWatcher[0].elapsed();                //Calculate the time that switch one was pressed 
+    g_switchATimeWatcher[0].stop();                                 //Stop the single action (dot/dash) timer and reset
+    g_switchATimeWatcher[0].reset();
     //Perform action if the switch has been hold active for specified time
     if (timePressed >= SWITCH_MODE_CHANGE_TIME){
       changeSwitchMode();
       showMode();                                                                
     } else if(g_switchMode==4) {
-      settingsAction(g_switchAState,LOW); 
+      settingsAction(LOW,g_switchAState); 
     }
   }
   //Perform actions based on the mode
@@ -288,7 +324,7 @@ void modeLoop() {
         morseAction(g_switchAState,g_switchBState);                                           //Keyboard Morse mode
         break;
       case 4:
-        settingsAction(g_switchAState,HIGH);                                                  //Settings mode
+        settingsAction(HIGH,g_switchBState);                                                  //Settings mode
         break;
   };
   delay(g_switchReactionTime);

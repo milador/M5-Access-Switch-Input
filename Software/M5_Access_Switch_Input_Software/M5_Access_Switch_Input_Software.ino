@@ -221,7 +221,7 @@ void showMessage() {
   M5.Lcd.setTextColor(BLUE); 
   g_switchMessage = "Switch Input";
   Serial.println(g_switchMessage);
-  M5.Lcd.drawCentreString(g_switchMessage,80,69,1);// Display connection state
+  M5.Lcd.drawCentreString(g_switchMessage,80,69,1);// Display message 
     
 }
 

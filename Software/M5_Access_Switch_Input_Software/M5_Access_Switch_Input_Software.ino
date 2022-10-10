@@ -141,9 +141,7 @@ void initBatterySaver() {
   //Wake-up using Switch A and Switch B
   pinMode(GPIO_NUM_26, INPUT_PULLUP);
   esp_sleep_enable_ext1_wakeup(BIT64(GPIO_NUM_26), ESP_EXT1_WAKEUP_ALL_LOW);
-  //Wake-up using Button A and Button B
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_37,LOW);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,LOW);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_25,LOW);
   currentTime = switchAPressTime = switchBPressTime = millis();
 }
 
@@ -240,7 +238,7 @@ void showModeInfo() {
   M5.Lcd.drawCentreString(switchBText,120,67,2);
 }
 
-//*** SHOW MODE INFO***//
+//*** SHOW REACTION LEVEL***//
 void showReactionLevel() {
   M5.Lcd.setRotation(3);
   M5.Lcd.drawRect(4, 37, 50, 60, WHITE);

@@ -10,7 +10,7 @@
 #include <BleKeyboard.h>
 #include "EasyMorse.h"
 #include <StopWatch.h>
-#include <M5StickC.h>
+#include <M5StickCPlus.h>
 
 //***CAN BE CHANGED***/
 #define MORSE_TIMEOUT                 1000                //Maximum timeout (1000ms =1s)
@@ -23,6 +23,7 @@
 #define TO_WAKE_TIME                  180                 //Wake up every 3 minutes 
 #define S_TO_MS_FACTOR                1000
 #define US_TO_S_FACTOR                1000000     
+#define SLEEP_MODE_ENABLED            true                //Set to false to disable sleep mode
 
 //***DO NOT CHANGE***//
 #define UPDATE_SWITCH_DELAY            200                 //100ms
@@ -43,8 +44,6 @@ String g_switchMessage;        //Custom message
 
 //Declare switch state variables for each switch
 bool g_switchAState,g_switchBState;
-
-int g_pageNumber;
 
 //Stopwatches array used to time switch presses
 StopWatch g_timeWatcher[3];
@@ -127,21 +126,10 @@ void setup() {
 };
 
 void loop() {
-
-  batterySaver();
+  
+  if(SLEEP_MODE_ENABLED) { batterySaver(); } // Sleep mode 
   //Perform input action based on page number 
-  switch (g_pageNumber) {
-    case 0:
-      introLoop();
-      break;
-    case 1:
-      modeLoop();
-      break;
-    default:
-      // statements
-      break;
-  }
-
+  modeLoop();
   delay(5);
   
 }
@@ -171,8 +159,6 @@ void batterySaver() {
 //*** SHOW INTRO PAGE***//
 void showIntro() {
 
-  g_pageNumber = 0;                                  //Set intro page number 
-
   M5.Lcd.setRotation(3);
 
   M5.Lcd.fillScreen(WHITE);
@@ -188,28 +174,28 @@ void showIntro() {
   M5.Lcd.setTextColor(WHITE);
 
   M5.Lcd.setTextSize(2);                        
-  M5.Lcd.drawCentreString("Milador.ca",80,20,2);
+  M5.Lcd.drawCentreString("Milador.ca",130,40,2);
 
   M5.Lcd.setTextSize(1);
-  M5.Lcd.drawCentreString("M5Stick Switch Input",80,50,1);
+  M5.Lcd.drawCentreString("M5Stick Switch Input",130,80,1);
 
   delay(3000);
+
 }
 
 //*** SHOW MODE PAGE***//
 void showMode(){
 
-  g_pageNumber = 1;
-
   M5.Lcd.setRotation(3);
   M5.Lcd.fillScreen(BLACK);                      //Black background
-  M5.Lcd.drawRect(1, 1, 159, 20, modeProperty[g_switchMode-1].modeColor);
+  M5.Lcd.drawRect(2, 2, 238, 30, modeProperty[g_switchMode-1].modeColor);
   M5.Lcd.setTextColor(modeProperty[g_switchMode-1].modeColor);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.drawCentreString(modeProperty[g_switchMode-1].modeName,80,2,2);
+  M5.Lcd.drawCentreString(modeProperty[g_switchMode-1].modeName,120,5,4);
   
   showModeInfo();
   showMessage();
+  if(g_switchMode==4) { showReactionLevel(); }
 }
 //*** SHOW CUSTOM MESSAGE***//
 void showMessage() {
@@ -217,11 +203,11 @@ void showMessage() {
   M5.Lcd.setRotation(3);
   M5.Lcd.setTextSize(1);                    // Select the font
   //Display connection status based on code
-  M5.Lcd.drawRect(1, 65, 159, 15, BLUE);
+  M5.Lcd.drawRect(2, 100, 238, 30, BLUE);
   M5.Lcd.setTextColor(BLUE); 
   g_switchMessage = "Switch Input";
   Serial.println(g_switchMessage);
-  M5.Lcd.drawCentreString(g_switchMessage,80,69,1);// Display message 
+  M5.Lcd.drawCentreString(g_switchMessage,120,105,2);// Display message 
     
 }
 
@@ -231,7 +217,7 @@ void showModeInfo() {
   String switchAText = "Swich A: ";
   String switchBText = "Swich B: ";
   M5.Lcd.setRotation(3);
-  M5.Lcd.drawRect(1, 23, 159, 41, WHITE);
+  M5.Lcd.drawRect(2, 35, 238, 62, WHITE);
   M5.Lcd.setTextColor(WHITE); 
   M5.Lcd.setTextSize(1);
   if(g_switchMode==1) {
@@ -250,9 +236,19 @@ void showModeInfo() {
     switchAText.concat(switchProperty[0].switchSettingsText);
     switchBText.concat(switchProperty[1].switchSettingsText);
   }
-  M5.Lcd.drawCentreString(switchAText,80,28,2);
-  M5.Lcd.drawCentreString(switchBText,80,43,2);
+  M5.Lcd.drawCentreString(switchAText,120,44,2);
+  M5.Lcd.drawCentreString(switchBText,120,67,2);
 }
+
+//*** SHOW MODE INFO***//
+void showReactionLevel() {
+  M5.Lcd.setRotation(3);
+  M5.Lcd.drawRect(4, 37, 50, 60, WHITE);
+  M5.Lcd.setTextColor(modeProperty[g_switchMode-1].modeColor); 
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.drawCentreString(String(g_switchReactionLevel),30,50,2);
+}
+
 
 /***INTRO PAGE LOOP***/
 void introLoop() {
@@ -340,7 +336,13 @@ void switchSetup() {
   //Check if it's first time running the code
   g_switchIsConfigured = EEPROM.read(EEPROM_isConfigured);
   delay(5); 
-  if (g_switchIsConfigured==0) {
+  if (g_switchIsConfigured==1){
+    //Load settings from flash storage if it's not the first time running the code
+    g_switchMode = EEPROM.read(EEPROM_modeNumber);
+    g_switchReactionLevel = EEPROM.read(EEPROM_reactionLevel);
+    delay(5);
+  }  
+  else {
     //Define default settings if it's first time running the code
     g_switchIsConfigured=1;
     g_switchMode=SWITCH_DEFAULT_MODE;
@@ -352,12 +354,7 @@ void switchSetup() {
     EEPROM.write(EEPROM_reactionLevel,g_switchReactionLevel);
     EEPROM.commit();
     delay(5);
-  } else {
-    //Load settings from flash storage if it's not the first time running the code
-    g_switchMode = EEPROM.read(EEPROM_modeNumber);
-    g_switchReactionLevel = EEPROM.read(EEPROM_reactionLevel);
-    delay(5);
-  }  
+  } 
 
     //Calculate switch delay based on g_switchReactionLevel
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);
@@ -523,16 +520,18 @@ void changeSwitchMode(){
 void settingsAction(int switchA,int switchB) {
   if(switchA==LOW) {
     decreaseReactionLevel();
+    showMode();
   }
   if(switchB==LOW) {
     increaseReactionLevel();
+    showMode();
   }
 }
 
 //***INCREASE SWITCH REACTION LEVEL FUNCTION***//
 void increaseReactionLevel(void) {
   g_switchReactionLevel++;
-  if (g_switchReactionLevel == 11) {
+  if (g_switchReactionLevel >= 11) {
     g_switchReactionLevel = 10;
   } else {
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);
@@ -546,6 +545,7 @@ void increaseReactionLevel(void) {
   Serial.print("-");
   Serial.println(g_morseReactionTime);
   EEPROM.write(EEPROM_reactionLevel, g_switchReactionLevel);
+  delay(5);
   EEPROM.commit();
   delay(25);
 }
@@ -553,7 +553,7 @@ void increaseReactionLevel(void) {
 //***DECREASE SWITCH REACTION LEVEL FUNCTION***//
 void decreaseReactionLevel(void) {
   g_switchReactionLevel--;
-  if (g_switchReactionLevel == 0) {
+  if (g_switchReactionLevel <= 0) {
     g_switchReactionLevel = 1; 
   } else {
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);
@@ -566,8 +566,8 @@ void decreaseReactionLevel(void) {
   Serial.print(g_switchReactionTime);
   Serial.print("-");
   Serial.println(g_morseReactionTime);  
-  
   EEPROM.write(EEPROM_reactionLevel, g_switchReactionLevel);
+  delay(5);
   EEPROM.commit();
   delay(25);
 }

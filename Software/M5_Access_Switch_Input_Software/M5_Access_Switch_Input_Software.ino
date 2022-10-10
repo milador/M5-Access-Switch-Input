@@ -23,6 +23,7 @@
 #define TO_WAKE_TIME                  180                 //Wake up every 3 minutes 
 #define S_TO_MS_FACTOR                1000
 #define US_TO_S_FACTOR                1000000     
+#define SLEEP_MODE_ENABLED            true                //Set to false to disable sleep mode
 
 //***DO NOT CHANGE***//
 #define UPDATE_SWITCH_DELAY            200                 //100ms
@@ -128,7 +129,7 @@ void setup() {
 
 void loop() {
 
-  batterySaver();
+  if(SLEEP_MODE_ENABLED) { batterySaver(); } // Sleep mode 
   //Perform input action based on page number 
   switch (g_pageNumber) {
     case 0:

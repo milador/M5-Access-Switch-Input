@@ -131,18 +131,7 @@ void loop() {
 
   if(SLEEP_MODE_ENABLED) { batterySaver(); } // Sleep mode 
   //Perform input action based on page number 
-  switch (g_pageNumber) {
-    case 0:
-      introLoop();
-      break;
-    case 1:
-      modeLoop();
-      break;
-    default:
-      // statements
-      break;
-  }
-
+  modeLoop();
   delay(5);
   
 }
@@ -154,9 +143,7 @@ void initBatterySaver() {
   //Wake-up using Switch A and Switch B
   pinMode(GPIO_NUM_26, INPUT_PULLUP);
   esp_sleep_enable_ext1_wakeup(BIT64(GPIO_NUM_26), ESP_EXT1_WAKEUP_ALL_LOW);
-  //Wake-up using Button A and Button B
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_37,LOW);
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_39,LOW);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_25,LOW);
   currentTime = switchAPressTime = switchBPressTime = millis();
 }
 
@@ -211,6 +198,7 @@ void showMode(){
   
   showModeInfo();
   showMessage();
+  if(g_switchMode==4) { showReactionLevel(); }
 }
 //*** SHOW CUSTOM MESSAGE***//
 void showMessage() {
@@ -253,6 +241,15 @@ void showModeInfo() {
   }
   M5.Lcd.drawCentreString(switchAText,80,28,2);
   M5.Lcd.drawCentreString(switchBText,80,43,2);
+}
+
+//*** SHOW REACTION LEVEL***//
+void showReactionLevel() {
+  M5.Lcd.setRotation(3);
+  M5.Lcd.drawRect(4, 37, 50, 60, WHITE);
+  M5.Lcd.setTextColor(modeProperty[g_switchMode-1].modeColor); 
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.drawCentreString(String(g_switchReactionLevel),30,50,2);
 }
 
 /***INTRO PAGE LOOP***/
@@ -334,31 +331,32 @@ void modeLoop() {
 //***SETUP SWITCH MODE FUNCTION***//
 void switchSetup() {
 
-  //Initialize the switch pins as inputs
-  pinMode(SWITCH_A_PIN, INPUT_PULLUP);    
-  pinMode(SWITCH_B_PIN, INPUT_PULLUP);   
-
-  //Check if it's first time running the code
-  g_switchIsConfigured = EEPROM.read(EEPROM_isConfigured);
-  delay(5); 
-  if (g_switchIsConfigured==0) {
-    //Define default settings if it's first time running the code
-    g_switchIsConfigured=1;
-    g_switchMode=SWITCH_DEFAULT_MODE;
-    g_switchReactionLevel=SWITCH_DEFAULT_REACTION_LEVEL;
-
-    //Write default settings to EEPROM 
-    EEPROM.write(EEPROM_isConfigured,g_switchIsConfigured);
-    EEPROM.write(EEPROM_modeNumber,g_switchMode);
-    EEPROM.write(EEPROM_reactionLevel,g_switchReactionLevel);
-    EEPROM.commit();
-    delay(5);
-  } else {
+    //Initialize the switch pins as inputs
+    pinMode(SWITCH_A_PIN, INPUT_PULLUP);    
+    pinMode(SWITCH_B_PIN, INPUT_PULLUP);   
+  
+    //Check if it's first time running the code
+    g_switchIsConfigured = EEPROM.read(EEPROM_isConfigured);
+    delay(5); 
+    if (g_switchIsConfigured==1){
     //Load settings from flash storage if it's not the first time running the code
     g_switchMode = EEPROM.read(EEPROM_modeNumber);
     g_switchReactionLevel = EEPROM.read(EEPROM_reactionLevel);
     delay(5);
-  }  
+    }  
+    else {
+      //Define default settings if it's first time running the code
+      g_switchIsConfigured=1;
+      g_switchMode=SWITCH_DEFAULT_MODE;
+      g_switchReactionLevel=SWITCH_DEFAULT_REACTION_LEVEL;
+  
+      //Write default settings to EEPROM 
+      EEPROM.write(EEPROM_isConfigured,g_switchIsConfigured);
+      EEPROM.write(EEPROM_modeNumber,g_switchMode);
+      EEPROM.write(EEPROM_reactionLevel,g_switchReactionLevel);
+      EEPROM.commit();
+      delay(5);
+    } 
 
     //Calculate switch delay based on g_switchReactionLevel
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);
@@ -383,7 +381,6 @@ void morseSetup() {
     morse.clear();
     msMin = g_morseReactionTime;
     msMax = msEnd = msClear = MORSE_TIMEOUT; 
-
 }
 
 //***ADAPTIVE SWITCH KEYBOARD FUNCTION***//
@@ -524,9 +521,11 @@ void changeSwitchMode(){
 void settingsAction(int switchA,int switchB) {
   if(switchA==LOW) {
     decreaseReactionLevel();
+    showMode();
   }
   if(switchB==LOW) {
     increaseReactionLevel();
+    showMode();
   }
 }
 

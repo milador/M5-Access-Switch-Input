@@ -73,13 +73,15 @@ typedef struct {
 } modeStruct;
 
 
- //Switch structure 
+//Switch structure 
 typedef struct { 
   uint8_t switchNumber;
   uint8_t switchChar;
   uint8_t switchMacChar;
   String  switchMacText;
   String  switchMorseText;
+  const uint8_t* switchMediaChar;
+  String  switchMediaText;
   String switchSettingsText;
   uint8_t switchMorseTimeMulti;
 } switchStruct;
@@ -88,8 +90,8 @@ typedef struct {
 
 //Switch properties 
 const switchStruct switchProperty[] {
-    {1,'a',KEY_F1,"F1","DOT","- Reaction",1},                             //{1=dot,"DOT",'a',  KEY_F1,5=blue,1=1xMORSE_REACTION}
-    {2,'b',KEY_F2,"F2","DASH","+ Reaction",3}                              //{2=dash,"DASH",'b',KEY_F2,6=red,3=3xMORSE_REACTION}
+    {1,'a',KEY_F1,"F1","DOT",KEY_MEDIA_PREVIOUS_TRACK,"Previous","- Reaction",1},                        //{1=dot,"DOT",'a',  KEY_F1, KEY_MEDIA_PREVIOUS_TRACK, Previous, 5=blue,1=1xMORSE_REACTION}
+    {2,'b',KEY_F2,"F2","DASH",KEY_MEDIA_NEXT_TRACK,"Next","+ Reaction",3}                                //{2=dash,"DASH",'b', KEY_F2, KEY_MEDIA_NEXT_TRACK, Next, 6=red,3=3xMORSE_REACTION}
 };
 
 
@@ -98,7 +100,8 @@ const modeStruct modeProperty[] {
     {1,"Switch",WHITE},
     {2,"Switch Mac",PINK},
     {3,"Morse Keyboard",RED},
-    {4,"Settings",YELLOW}
+    {4,"Media Control",GREEN},
+    {5,"Settings",YELLOW}
 };
 
 
@@ -198,7 +201,7 @@ void showMode(){
   
   showModeInfo();
   showMessage();
-  if(g_switchMode==4) { showReactionLevel(); }
+  if(g_switchMode==5) { showReactionLevel(); }
 }
 //*** SHOW CUSTOM MESSAGE***//
 void showMessage() {
@@ -236,6 +239,10 @@ void showModeInfo() {
     switchBText.concat(switchProperty[1].switchMorseText);
   }
   else if(g_switchMode==4) {
+    switchAText.concat(switchProperty[0].switchMediaText);
+    switchBText.concat(switchProperty[1].switchMediaText);
+  }
+  else if(g_switchMode==5) {
     switchAText.concat(switchProperty[0].switchSettingsText);
     switchBText.concat(switchProperty[1].switchSettingsText);
   }
@@ -322,6 +329,9 @@ void modeLoop() {
         morseAction(g_switchAState,g_switchBState);                                           //Keyboard Morse mode
         break;
       case 4:
+        mediaAction(g_switchAState,g_switchBState);                                                  //Settings mode
+        break;
+      case 5:
         settingsAction(HIGH,g_switchBState);                                                  //Settings mode
         break;
   };
@@ -391,6 +401,22 @@ void keyboardAction(bool macMode,int switchA,int switchB) {
     } else if(!switchB) {
       //Windows,Android: b, Mac: F2
       (macMode) ? bleKeyboard.write(switchProperty[1].switchMacChar) : bleKeyboard.write(switchProperty[1].switchChar);
+    } else
+    {
+      bleKeyboard.releaseAll();
+    }
+    delay(5);
+
+}
+
+//***MEDIA CONTROL SWITCH KEYBOARD FUNCTION***//
+void mediaAction(int switchA,int switchB) {
+    if(!switchA) {
+      //Play/Pause
+      bleKeyboard.write(switchProperty[0].switchMediaChar);
+    } else if(!switchB) {
+      //Next
+      bleKeyboard.write(switchProperty[1].switchMediaChar);
     } else
     {
       bleKeyboard.releaseAll();
@@ -532,7 +558,7 @@ void settingsAction(int switchA,int switchB) {
 //***INCREASE SWITCH REACTION LEVEL FUNCTION***//
 void increaseReactionLevel(void) {
   g_switchReactionLevel++;
-  if (g_switchReactionLevel == 11) {
+  if (g_switchReactionLevel >= 11) {
     g_switchReactionLevel = 10;
   } else {
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);
@@ -553,7 +579,7 @@ void increaseReactionLevel(void) {
 //***DECREASE SWITCH REACTION LEVEL FUNCTION***//
 void decreaseReactionLevel(void) {
   g_switchReactionLevel--;
-  if (g_switchReactionLevel == 0) {
+  if (g_switchReactionLevel <= 0) {
     g_switchReactionLevel = 1; 
   } else {
     g_switchReactionTime = ((11-g_switchReactionLevel)*SWITCH_REACTION_TIME);

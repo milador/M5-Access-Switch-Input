@@ -1,6 +1,6 @@
 # M5-Access-Switch-Input
 
-A Bluetooth enabled Adaptive Switch Interface based on ESP32 M5StickC/M5StickCPlus and the Switch Input module which offers up to two 3.5mm switch inputs. 
+A Bluetooth enabled Adaptive Switch Interface based on ESP32 M5StickC/M5StickCPlus, and the Switch Input module which offers up to two 3.5mm switch inputs. 
 
 The Adaptive Switch Interface includes 4 operating modes: 
 
